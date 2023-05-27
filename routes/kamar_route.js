@@ -11,6 +11,7 @@ const kamarController = require(`../controller/kamar_controller`);
 const { checkRole } = require(`../middleware/checkrole`);
 
 app.get('/', auth.authVerify, checkRole(['admin', 'resepsionis']), kamarController.getAllkamar);
+app.get('/:id', auth.authVerify, checkRole(['admin', 'resepsionis']), kamarController.findTipeById);
 app.post('/findtipe', auth.authVerify, checkRole(['admin', 'resepsionis']), kamarController.findKamar);
 app.post('/findByTipe', auth.authVerify, checkRole(['admin', 'resepsionis']), kamarController.findTipK);
 app.post('/', auth.authVerify, checkRole(['admin', 'resepsionis']), kamarController.addKamar);

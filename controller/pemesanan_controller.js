@@ -7,8 +7,9 @@ const Op = require(`sequelize`).Op;
 const moment = require(`moment`);
 const crypto = require('crypto');
 const Sequelize = require('sequelize');
-const sequelize = new Sequelize('wikusama_hotel', 'root', '', {
-  host: 'localhost',
+require('dotenv').config();
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
+  host: process.env.DB_HOST,
   dialect: 'mysql',
 });
 
@@ -46,7 +47,7 @@ exports.addPemesanan = async (request, response) => {
   if (room === null) {
     return response.json({
       success: false,
-      message: `sampon di booking mas`,
+      message: `Sudah habis mas`,
     });
   } else if (user === null) {
     return response.json({
@@ -67,7 +68,7 @@ exports.addPemesanan = async (request, response) => {
       tgl_check_out: request.body.tgl_check_out,
       nama_tamu: request.body.nama_tamu,
       jumlah_kamar: request.body.jumlah_kamar,
-      tipeKamarId: room.id,
+      tipeKamarId: room.tipeKamarId,
       status_pemesanan: 'baru',
       userId: user.id,
     };
@@ -175,12 +176,12 @@ exports.updatePemesanan = async (request, response) => {
 
   let room = await kamar.findOne({
     where: {
-      [Op.or]: [{ tipeKamarId: tipe.id }, { id: { [Op.notIn]: bookedRoomIds } }],
+      [Op.and]: [{ tipeKamarId: tipe.id }, { id: { [Op.notIn]: bookedRoomIds } }],
     },
   });
 
   if (room !== undefined) {
-    newData.tipeKamarId = room.id;
+    newData.tipeKamarId = room.tipeKamarId;
   }
 
   for (const [key, value] of Object.entries(newData)) {
@@ -264,6 +265,41 @@ exports.updatePemesanan = async (request, response) => {
     });
 };
 
+exports.updateStatus = async (request, response) => {
+  let newData = {
+    status_pemesanan: request.body.status_pemesanan,
+  };
+
+  let pemesananID = request.params.id;
+  let getId = await pemesananModel.findAll({
+    where: {
+      [Op.and]: [{ id: pemesananID }],
+    },
+  });
+
+  if (getId.length === 0) {
+    return response.json({
+      success: false,
+      message: 'Transaksi dengan id tersebut tidak ada',
+    });
+  }
+
+  pemesananModel
+    .update(newData, { where: { id: pemesananID } })
+    .then((result) => {
+      return response.json({
+        success: true,
+        message: `Status pemesanan berhasil diperbarui`,
+      });
+    })
+    .catch((error) => {
+      return response.json({
+        success: false,
+        message: error.message,
+      });
+    });
+};
+
 exports.deletePemesanan = async (request, response) => {
   let pemesananID = request.params.id;
   let getId = await pemesananModel.findAll({
@@ -309,18 +345,50 @@ exports.deletePemesanan = async (request, response) => {
 exports.getPemesanan = async (request, response) => {
   let data = await pemesananModel.findAll({
     include: [
-      `tipe_kamar`,
-      `user`,
       {
-        model: detail_pemesananModel,
-        as: `detail_pemesanan`,
-        include: ['kamar'],
+        model: userModel,
+        attributes: ['nama_user'],
+      },
+      {
+        model: tipeModel,
+        attributes: ['nama_tipe_kamar'],
       },
     ],
+    order: [['updatedAt', 'DESC']],
   });
   return response.json({
     success: true,
     data: data,
     message: `All  have been loaded`,
   });
+};
+
+exports.getPemesananById = async (request, response) => {
+  try {
+    const { id } = request.params;
+    let data = await pemesananModel.findOne({
+      include: [
+        {
+          model: userModel,
+          attributes: ['nama_user'],
+        },
+        {
+          model: tipeModel,
+          attributes: ['nama_tipe_kamar'],
+        },
+      ],
+      where: { id },
+    });
+    return response.json({
+      success: true,
+      data: data,
+      message: `All  have been loaded`,
+    });
+  } catch (error) {
+    console.log(error);
+    return response.status(500).json({
+      success: false,
+      message: `Failed to get user with ID ${id}`,
+    });
+  }
 };

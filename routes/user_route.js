@@ -14,7 +14,7 @@ app.post('/login', userController.login);
 app.get('/getAll', auth.authVerify, checkRole(['admin', 'resepsionis']), userController.getAllUser);
 app.get('/:id', auth.authVerify, checkRole(['admin', 'resepsionis']), userController.findUserById);
 app.post('/finduser', auth.authVerify, checkRole(['admin']), userController.findUser);
-app.post('/', auth.authVerify, checkRole(['admin', 'resepsionis']), userController.addUser);
+app.post('/', auth.authVerify, userController.addUser);
 app.put('/:id', auth.authVerify, checkRole(['admin']), userController.updateUser);
 app.delete('/:id', auth.authVerify, checkRole(['admin']), userController.deleteUser);
 

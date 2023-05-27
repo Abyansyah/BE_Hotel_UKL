@@ -1,4 +1,5 @@
 const jsonwebtoken = require('jsonwebtoken');
+require('dotenv').config();
 
 const authVerify = async (req, res, next) => {
   try {
@@ -11,7 +12,7 @@ const authVerify = async (req, res, next) => {
     }
 
     let token = header.split(' ')[1];
-    const SECRET_KEY = 'secretcode';
+    const SECRET_KEY = process.env.SECRET_KEY;
 
     let decodedToken;
     try {

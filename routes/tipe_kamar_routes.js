@@ -11,9 +11,10 @@ const auth = require('../auth/auth');
 const { checkRole } = require(`../middleware/checkrole`);
 
 app.get('/', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.getAllTipekamar);
+app.get('/:id', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.findTipeById);
 app.post('/findtipe', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.findTipekamar);
-app.post('/', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.addTipe);
-app.put('/:id', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.updateTipe);
-app.delete('/:id', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.deleteUser);
+app.post('/', auth.authVerify, checkRole(['admin']), tipeController.addTipe);
+app.put('/:id', auth.authVerify, checkRole(['admin']), tipeController.updateTipe);
+app.delete('/:id', auth.authVerify, checkRole(['admin']), tipeController.deleteUser);
 
 module.exports = app;

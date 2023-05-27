@@ -1,4 +1,5 @@
 const express = require(`express`);
+const path = require('path');
 const app = express();
 const PORT = 8000;
 const cors = require(`cors`);
@@ -13,10 +14,11 @@ app.use(`/user`, userRoute);
 app.use(`/tipe`, tipeRoute);
 app.use(`/kamar`, kamarRoute);
 app.use(`/pemesanan`, pemesananRoute);
-
+app.use(express.static(__dirname));
 app.use(express.static('foto_user'));
+app.use('/foto_user', express.static(path.join(__dirname, '/path/to/foto_user')));
 
 app.listen(PORT, () => {
   console.log(`Server Running...
-    ${PORT}`);
+  On Port  ${PORT}`);
 });

@@ -4,9 +4,10 @@ const Op = require(`sequelize`).Op;
 const path = require(`path`);
 const fs = require(`fs`);
 const md5 = require('md5');
+require('dotenv').config();
 
 const jsonwebtoken = require('jsonwebtoken');
-const SECRET_KEY = 'secretcode';
+const SECRET_KEY = process.env.SECRET_KEY;
 
 exports.login = async (request, response) => {
   try {
@@ -22,9 +23,9 @@ exports.login = async (request, response) => {
         err: error,
       });
     }
-    console.log(findUser);
+
     let tokenPayLoad = {
-      id_user: findUser.id_user,
+      id_user: findUser.id,
       email: findUser.email,
       role: findUser.role,
     };
@@ -35,10 +36,11 @@ exports.login = async (request, response) => {
       message: 'Success login',
       data: {
         token: token,
-        id_user: findUser.id_user,
+        id_user: findUser.id,
         nama_user: findUser.nama_user,
         email: findUser.email,
         role: findUser.role,
+        foto: findUser.foto,
       },
     });
   } catch (error) {
@@ -54,6 +56,7 @@ exports.getAllUser = async (request, response) => {
   let users = await userModel.findAll({ order: [['updatedAt', 'DESC']] });
   return response.json({
     success: true,
+    count: users.length,
     data: users,
     message: `All Users have been loaded`,
   });
@@ -61,21 +64,26 @@ exports.getAllUser = async (request, response) => {
 
 exports.findUserById = async (request, response) => {
   try {
-    const result = await userModel.findOne({
-      where: {
-        id: request.params.id,
-      },
-    });
-    response.status(200).json({
+    const { id } = request.params;
+    const result = await userModel.findOne({ where: { id } });
+
+    if (!result) {
+      return response.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    return response.status(200).json({
       success: true,
       data: result,
-      message: `User with ID has been loaded`,
+      message: `User with ID ${id} has been updated`,
     });
   } catch (error) {
     console.log(error);
     return response.status(500).json({
       success: false,
-      message: `Failed to get user with ID`,
+      message: `Failed to get user with ID ${id}`,
     });
   }
 };
@@ -164,9 +172,12 @@ exports.updateUser = (request, response) => {
     let dataUser = {
       nama_user: request.body.nama_user,
       email: request.body.email,
-      password: md5(request.body.password),
       role: request.body.role,
     };
+
+    if (request.body.password) {
+      dataUser.password = md5(request.body.password);
+    }
 
     if (request.file) {
       const selectedUser = await userModel.findOne({
@@ -182,13 +193,6 @@ exports.updateUser = (request, response) => {
       }
 
       dataUser.foto = request.file.filename;
-    }
-
-    if (dataUser.nama_user === '' || dataUser.email === '' || dataUser.password === '' || dataUser.role === '') {
-      return response.json({
-        success: false,
-        message: 'Harus diisi semua kalau tidak ingin merubah isi dengan value sebelumnya',
-      });
     }
 
     let user = await userModel.findAll({

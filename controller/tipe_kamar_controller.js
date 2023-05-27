@@ -3,7 +3,6 @@ const upload = require(`./upload_foto_tipe`).single(`foto`);
 const Op = require(`sequelize`).Op;
 const path = require(`path`);
 const fs = require(`fs`);
-const md5 = require('md5');
 
 exports.getAllTipekamar = async (request, response) => {
   let users = await tipeModel.findAll({ order: [['updatedAt', 'DESC']] });
@@ -12,6 +11,32 @@ exports.getAllTipekamar = async (request, response) => {
     data: users,
     message: `All tipe model have been loaded`,
   });
+};
+
+exports.findTipeById = async (request, response) => {
+  try {
+    const { id } = request.params;
+    const result = await tipeModel.findOne({ where: { id } });
+
+    if (!result) {
+      return response.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: result,
+      message: `User with ID ${id} has been updated`,
+    });
+  } catch (error) {
+    console.log(error);
+    return response.status(500).json({
+      success: false,
+      message: `Failed to get user with ID ${id}`,
+    });
+  }
 };
 
 exports.findTipekamar = async (request, response) => {
@@ -77,7 +102,6 @@ exports.updateTipe = (request, response) => {
       nama_tipe_kamar: request.body.nama_tipe_kamar,
       harga: request.body.harga,
       deskripsi: request.body.deskripsi,
-      foto: request.file.filename,
     };
 
     if (request.file) {

@@ -1,14 +1,15 @@
 const kamarModel = require('../models/index').kamar;
 const tipeKamar = require('../models/index').tipe_kamar;
 const Op = require('sequelize').Op;
-const Sequelize = require('sequelize');
-const sequelize = new Sequelize('wikusama_hotel', 'root', '', {
-  host: 'localhost',
-  dialect: 'mysql',
-});
 
 exports.getAllkamar = async (request, response) => {
-  const result = await kamarModel.findAll({ order: [['updatedAt', 'DESC']] });
+  const result = await kamarModel.findAll({
+    include: {
+      model: tipeKamar,
+      attributes: ['nama_tipe_kamar'],
+    },
+    order: [['updatedAt', 'DESC']],
+  });
 
   if (result === '') {
     response.status(404).json({
@@ -38,13 +39,61 @@ exports.findKamar = async (request, response) => {
   });
 };
 
+exports.findTipeById = async (request, response) => {
+  try {
+    const { id } = request.params;
+    const result = await kamarModel.findOne({
+      include: {
+        model: tipeKamar,
+        attributes: ['nama_tipe_kamar'],
+      },
+      where: { id },
+    });
+
+    if (!result) {
+      return response.status(404).json({
+        success: false,
+        message: 'Kamar not found',
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      data: result,
+      message: `Kamar with ID ${id} has been updated`,
+    });
+  } catch (error) {
+    console.log(error);
+    return response.status(500).json({
+      success: false,
+      message: `Failed to get user with ID ${id}`,
+    });
+  }
+};
+
 exports.findTipK = async (request, response) => {
-  let nama_tipe = request.body.nama_tipe;
+  let { nama_tipe, nomor_kamar } = request.body;
+
+  let whereCondition = {};
+
+  if (nama_tipe) {
+    whereCondition = {
+      ...whereCondition,
+      [Op.or]: [{ nama_tipe_kamar: { [Op.substring]: nama_tipe } }],
+    };
+  }
+
+  if (nomor_kamar) {
+    whereCondition = {
+      ...whereCondition,
+      nomor_kamar: {
+        [Op.substring]: nomor_kamar,
+      },
+    };
+  }
 
   let checkTipe = await tipeKamar.findOne({
-    where: {
-      [Op.or]: [{ nama_tipe_kamar: { [Op.substring]: nama_tipe } }],
-    },
+    where: whereCondition,
   });
 
   if (checkTipe === null) {
@@ -68,11 +117,13 @@ exports.findTipK = async (request, response) => {
 exports.addKamar = async (request, response) => {
   let nomor = request.body.nomor_kamar;
   let nama_tipe_kamar = request.body.nama_tipe_kamar;
+
   let tipe_Kamar = await tipeKamar.findOne({
     where: {
       [Op.or]: [{ nama_tipe_kamar: { [Op.substring]: nama_tipe_kamar } }],
     },
   });
+
   let nomork = await kamarModel.findOne({
     where: {
       [Op.and]: [{ nomor_kamar: { [Op.substring]: nomor } }, { tipeKamarId: tipe_Kamar.id }],
