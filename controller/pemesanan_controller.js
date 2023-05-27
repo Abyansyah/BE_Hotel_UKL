@@ -22,6 +22,7 @@ exports.addPemesanan = async (request, response) => {
       [Op.or]: [{ nama_tipe_kamar: { [Op.substring]: nomor_kamar } }],
     },
   });
+
   if (tipe == null) {
     return response.status(404).json({
       success: false,
@@ -67,7 +68,7 @@ exports.addPemesanan = async (request, response) => {
       tgl_check_in: request.body.tgl_check_in,
       tgl_check_out: request.body.tgl_check_out,
       nama_tamu: request.body.nama_tamu,
-      jumlah_kamar: request.body.jumlah_kamar,
+      jumlah_kamar: '1',
       tipeKamarId: room.tipeKamarId,
       status_pemesanan: 'baru',
       userId: user.id,
@@ -80,7 +81,7 @@ exports.addPemesanan = async (request, response) => {
         .create(newData)
         .then((result) => {
           let pemesananID = result.id;
-          let detail_pemesanan = request.body.detail_pemesanan;
+          let detail_pemesanan = tipe.harga;
 
           for (let i = 0; i < detail_pemesanan.length; i++) {
             detail_pemesanan[i].pemesananId = pemesananID;
@@ -103,7 +104,7 @@ exports.addPemesanan = async (request, response) => {
               pemesananId: pemesananID,
               kamarId: room.id,
               tgl_akses: date,
-              harga: detail_pemesanan[0].harga,
+              harga: detail_pemesanan,
             };
             detail_pemesananModel.create(newDetail).catch((error) => {
               success = false;
