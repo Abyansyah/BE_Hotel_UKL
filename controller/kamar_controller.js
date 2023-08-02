@@ -20,6 +20,7 @@ exports.getAllkamar = async (request, response) => {
   return response.json({
     success: true,
     data: result,
+    count: result.length,
     message: `Kamar have been loaded`,
   });
 };
@@ -115,7 +116,6 @@ exports.findTipK = async (request, response) => {
 };
 
 exports.addKamar = async (request, response) => {
-  let nomor = request.body.nomor_kamar;
   let nama_tipe_kamar = request.body.nama_tipe_kamar;
 
   let tipe_Kamar = await tipeKamar.findOne({
@@ -124,44 +124,58 @@ exports.addKamar = async (request, response) => {
     },
   });
 
-  let nomork = await kamarModel.findOne({
-    where: {
-      [Op.and]: [{ nomor_kamar: { [Op.substring]: nomor } }, { tipeKamarId: tipe_Kamar.id }],
-    },
-  });
-
   if (tipe_Kamar === null) {
     response.json({
       success: false,
       message: `Tidak ada tipe kamar dengan nama : ${nama_tipe_kamar}`,
     });
-  }
-  if (nomork !== null) {
-    response.json({
-      success: false,
-      message: `Nomor kamar  ${nomor} sudah ada`,
-    });
   } else {
-    let newKamar = {
-      nomor_kamar: nomor,
-      tipeKamarId: tipe_Kamar.id,
-    };
+    let lastRoomNumber = await kamarModel.findOne({
+      where: { tipeKamarId: tipe_Kamar.id },
+      order: [['nomor_kamar', 'DESC']],
+    });
 
-    kamarModel
-      .create(newKamar)
-      .then((result) => {
-        return response.json({
-          success: true,
-          data: result,
-          message: `New Kamar has been inserted`,
-        });
-      })
-      .catch((error) => {
-        return response.json({
-          success: false,
-          message: error.message,
-        });
+    let startingRoomNumber = lastRoomNumber ? parseInt(lastRoomNumber.nomor_kamar) + 1 : 1;
+    let newKamarList = [];
+
+    for (let i = 0; i < 5; i++) {
+      let nomor = (startingRoomNumber + i).toString();
+      let nomork = await kamarModel.findOne({
+        where: {
+          [Op.and]: [{ nomor_kamar: { [Op.substring]: nomor } }, { tipeKamarId: tipe_Kamar.id }],
+        },
       });
+
+      if (nomork === null) {
+        newKamarList.push({
+          nomor_kamar: nomor,
+          tipeKamarId: tipe_Kamar.id,
+        });
+      }
+    }
+
+    if (newKamarList.length === 0) {
+      response.json({
+        success: false,
+        message: `All room numbers already exist for the given room type`,
+      });
+    } else {
+      kamarModel
+        .bulkCreate(newKamarList)
+        .then((result) => {
+          return response.json({
+            success: true,
+            data: result,
+            message: `New Kamar has been inserted`,
+          });
+        })
+        .catch((error) => {
+          return response.json({
+            success: false,
+            message: error.message,
+          });
+        });
+    }
   }
 };
 

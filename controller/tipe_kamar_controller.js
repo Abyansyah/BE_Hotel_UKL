@@ -1,4 +1,6 @@
 const tipeModel = require('../models/index').tipe_kamar;
+const kamarModel = require('../models/index').kamar;
+const detail_pemesananModel = require('../models/index').detail_pemesanan;
 const upload = require(`./upload_foto_tipe`).single(`foto`);
 const Op = require(`sequelize`).Op;
 const path = require(`path`);
@@ -9,8 +11,56 @@ exports.getAllTipekamar = async (request, response) => {
   return response.json({
     success: true,
     data: users,
+    count: users.length,
     message: `All tipe model have been loaded`,
   });
+};
+
+exports.getAvailableTipeKamar = async (request, response) => {
+  try {
+    const { tgl_check_in, tgl_check_out } = request.query;
+
+    const bookedRooms = await detail_pemesananModel.findAll({
+      where: {
+        tgl_akses: {
+          [Op.between]: [tgl_check_in, tgl_check_out],
+        },
+      },
+      attributes: ['kamarId'],
+    });
+
+    const bookedRoomIds = bookedRooms.map((row) => row.kamarId);
+
+    const availableKamars = await kamarModel.findAll({
+      where: {
+        id: {
+          [Op.notIn]: bookedRoomIds,
+        },
+      },
+      attributes: ['tipeKamarId'],
+    });
+
+    const availableTipeKamarIds = availableKamars.map((row) => row.tipeKamarId);
+
+    const availableTipeKamar = await tipeModel.findAll({
+      where: {
+        id: {
+          [Op.in]: availableTipeKamarIds,
+        },
+      },
+    });
+
+    return response.status(200).json({
+      success: true,
+      data: availableTipeKamar,
+      message: 'Available tipe_kamar fetched successfully',
+    });
+  } catch (error) {
+    return response.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 exports.findTipeById = async (request, response) => {

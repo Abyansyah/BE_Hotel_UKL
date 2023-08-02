@@ -112,12 +112,14 @@ exports.findUser = async (request, response) => {
 exports.addUser = (request, response) => {
   upload(request, response, async (error) => {
     if (error) {
-      return response.json({
+      return response.status(500).json({
+        success: false,
         message: error,
       });
     }
     if (!request.file) {
-      return response.json({
+      return response.status(400).json({
+        success: false,
         message: `Nothing to Upload`,
       });
     }
@@ -131,16 +133,35 @@ exports.addUser = (request, response) => {
     };
 
     userModel
-      .create(newUser)
-      .then((result) => {
-        return response.json({
-          success: true,
-          data: result,
-          message: `New User has been inserted`,
-        });
+      .findOne({
+        where: [{ email: { [Op.substring]: newUser.email } }],
+      })
+      .then((existingUser) => {
+        if (existingUser) {
+          return response.status(208).json({
+            success: false,
+            message: 'Email tersebut sudah ada',
+          });
+        } else {
+          userModel
+            .create(newUser)
+            .then((result) => {
+              return response.status(201).json({
+                success: true,
+                data: result,
+                message: `New User has been inserted`,
+              });
+            })
+            .catch((error) => {
+              return response.status(500).json({
+                success: false,
+                message: error.message,
+              });
+            });
+        }
       })
       .catch((error) => {
-        return response.json({
+        return response.status(500).json({
           success: false,
           message: error.message,
         });
