@@ -7,11 +7,21 @@ const path = require(`path`);
 const fs = require(`fs`);
 
 exports.getAllTipekamar = async (request, response) => {
-  let users = await tipeModel.findAll({ order: [['updatedAt', 'DESC']] });
+  let tipe = await tipeModel.findAll({ order: [['updatedAt', 'DESC']] });
   return response.json({
     success: true,
-    data: users,
-    count: users.length,
+    data: tipe,
+    count: tipe.length,
+    message: `All tipe model have been loaded`,
+  });
+};
+
+exports.getTipe = async (request, response) => {
+  let tipe = await tipeModel.findAll({ order: [['updatedAt', 'DESC']] });
+  return response.json({
+    success: true,
+    data: tipe,
+    count: tipe.length,
     message: `All tipe model have been loaded`,
   });
 };

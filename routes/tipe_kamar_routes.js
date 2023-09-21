@@ -11,6 +11,7 @@ const auth = require('../auth/auth');
 const { checkRole } = require(`../middleware/checkrole`);
 
 app.get('/', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.getAllTipekamar);
+app.get('/tipe', tipeController.getTipe);
 app.get('/tgl', tipeController.getAvailableTipeKamar);
 app.get('/:id', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.findTipeById);
 app.post('/findtipe', auth.authVerify, checkRole(['admin', 'resepsionis']), tipeController.findTipekamar);

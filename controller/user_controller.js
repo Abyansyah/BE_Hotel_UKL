@@ -11,6 +11,20 @@ const SECRET_KEY = process.env.SECRET_KEY;
 
 exports.login = async (request, response) => {
   try {
+    const { email, password } = request.body;
+
+    if (!email) {
+      return response.status(400).json({
+        message: 'Email wajib diisi',
+      });
+    }
+
+    if (!password) {
+      return response.status(400).json({
+        message: 'Kata sandi wajib diisi',
+      });
+    }
+
     const params = {
       email: request.body.email,
       password: md5(request.body.password),
@@ -33,6 +47,7 @@ exports.login = async (request, response) => {
     let token = await jsonwebtoken.sign(tokenPayLoad, SECRET_KEY);
 
     return response.status(200).json({
+      success: true,
       message: 'Success login',
       data: {
         token: token,
@@ -54,12 +69,19 @@ exports.login = async (request, response) => {
 
 exports.getAllUser = async (request, response) => {
   let users = await userModel.findAll({ order: [['updatedAt', 'DESC']] });
-  return response.json({
-    success: true,
-    count: users.length,
-    data: users,
-    message: `All Users have been loaded`,
-  });
+  try {
+    return response.json({
+      success: true,
+      count: users.length,
+      data: users,
+      message: `All Users have been loaded`,
+    });
+  } catch (error) {
+    return response.json.status(500)({
+      success: false,
+      message: `Internal server error`,
+    });
+  }
 };
 
 exports.findUserById = async (request, response) => {
