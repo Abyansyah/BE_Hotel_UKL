@@ -69,11 +69,14 @@ exports.login = async (request, response) => {
 
 exports.getAllUser = async (request, response) => {
   let users = await userModel.findAll({ order: [['updatedAt', 'DESC']] });
+
+  const filteredUsers = users.filter((user) => user.role !== 'tamu');
+
   try {
     return response.json({
       success: true,
-      count: users.length,
-      data: users,
+      count: filteredUsers.length,
+      data: filteredUsers,
       message: `All Users have been loaded`,
     });
   } catch (error) {

@@ -46,7 +46,7 @@ exports.addPemesanan = async (request, response) => {
   });
 
   if (rooms.length === 0) {
-    return response.json({
+    return response.status(404).json({
       success: false,
       message: `Sudah habis mas`,
     });
@@ -74,9 +74,7 @@ exports.addPemesanan = async (request, response) => {
       userId: user.id,
     };
 
-    let roomCheck = await sequelize.query(`SELECT * FROM detail_pemesanans WHERE kamarId = ${newData.tipeKamarId} AND tgl_akses= "${request.body.tgl_check_in}"`);
-
-    if (roomCheck[0].length === 0) {
+    if (rooms.length !== 0) {
       let success = true;
       let message = '';
 
@@ -401,22 +399,48 @@ exports.getPemesanan = async (request, response) => {
 exports.getPemesananById = async (request, response) => {
   try {
     const { id } = request.params;
-    let data = await pemesananModel.findOne({
+    const userReservations = await pemesananModel.findAll({
+      where: {
+        id: id,
+      },
       include: [
+        {
+          model: tipeModel,
+          attributes: ['nama_tipe_kamar', 'foto', 'nama_tipe_kamar', 'deskripsi', 'harga'],
+        },
         {
           model: userModel,
           attributes: ['nama_user'],
         },
         {
-          model: tipeModel,
-          attributes: ['nama_tipe_kamar'],
+          model: detail_pemesananModel,
+          as: 'detail_pemesanan',
         },
       ],
-      where: { id },
     });
+
+    const reservationsWithTotalHarga = userReservations.map((reservation) => {
+      const totalHarga = reservation.detail_pemesanan.reduce((acc, detail) => {
+        return acc + detail.harga * reservation.jumlah_kamar;
+      }, 0);
+
+      return {
+        ...reservation.toJSON(),
+        total_harga: totalHarga,
+        detail_pemesanan_count: reservation.detail_pemesanan.length,
+      };
+    });
+
+    if (reservationsWithTotalHarga.length === 0) {
+      return response.status(404).json({
+        success: false,
+        message: `Reservation with ID ${id} not found`,
+      });
+    }
+
     return response.json({
       success: true,
-      data: data,
+      data: reservationsWithTotalHarga[0],
       message: `All  have been loaded`,
     });
   } catch (error) {
@@ -463,5 +487,57 @@ exports.findDatatgl = async (request, response) => {
     });
   } catch (error) {
     response.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.getDetailPemesananByUserId = async (request, response) => {
+  try {
+    const { userId } = request.params;
+
+    const userReservations = await pemesananModel.findAll({
+      where: {
+        userId: userId,
+      },
+      include: [
+        {
+          model: tipeModel,
+          attributes: ['id', 'nama_tipe_kamar', 'foto', 'nama_tipe_kamar', 'deskripsi', 'harga'],
+        },
+        {
+          model: detail_pemesananModel,
+          as: 'detail_pemesanan',
+          include: [
+            {
+              model: kamar,
+              as: 'kamar',
+              attributes: ['nomor_kamar'],
+            },
+          ],
+        },
+      ],
+      order: [['updatedAt', 'DESC']],
+    });
+
+    const reservationsWithTotalHarga = userReservations.map((reservation) => {
+      const totalHarga = reservation.detail_pemesanan.reduce((acc, detail) => {
+        return acc + detail.harga * reservation.jumlah_kamar;
+      }, 0);
+      return {
+        ...reservation.toJSON(),
+        total_harga: totalHarga,
+      };
+    });
+
+    return response.status(200).json({
+      success: true,
+      data: reservationsWithTotalHarga,
+      message: 'User reservations fetched successfully',
+    });
+  } catch (error) {
+    console.error(error);
+    return response.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
   }
 };

@@ -1,6 +1,8 @@
 const kamarModel = require('../models/index').kamar;
 const tipeKamar = require('../models/index').tipe_kamar;
+const detail_pemesanan = require('../models/index').detail_pemesanan;
 const Op = require('sequelize').Op;
+const sequelize = require('sequelize');
 
 exports.getAllkamar = async (request, response) => {
   const result = await kamarModel.findAll({
@@ -23,6 +25,58 @@ exports.getAllkamar = async (request, response) => {
     count: result.length,
     message: `Kamar have been loaded`,
   });
+};
+
+exports.getAvaible = async (request, response) => {
+  try {
+    const { tgl_check_in, tgl_check_out } = request.query;
+
+    const availableKamar = await kamarModel.findAll({
+      include: {
+        model: detail_pemesanan,
+        as: 'detail_pemesanan',
+        required: false,
+        where: {
+          pemesananId: null,
+          [sequelize.Op.or]: [
+            {
+              tgl_akses: {
+                [sequelize.Op.lt]: new Date(tgl_check_in),
+              },
+            },
+            {
+              tgl_akses: {
+                [sequelize.Op.gt]: new Date(tgl_check_out),
+              },
+            },
+          ],
+        },
+      },
+      attributes: ['nomor_kamar'],
+      order: [['updatedAt', 'DESC']],
+    });
+
+    if (!availableKamar || availableKamar.length === 0) {
+      return response.status(404).json({
+        message: 'No available rooms found for the specified dates',
+        success: false,
+      });
+    }
+
+    const availableRooms = availableKamar.map((room) => room.nomor_kamar);
+
+    return response.status(200).json({
+      success: true,
+      data: availableRooms,
+      count: availableRooms.length,
+      message: 'Available rooms have been loaded',
+    });
+  } catch (error) {
+    console.error(error);
+    return response.status(500).json({
+      message: 'Internal server error',
+    });
+  }
 };
 
 exports.findKamar = async (request, response) => {
@@ -73,50 +127,63 @@ exports.findTipeById = async (request, response) => {
 };
 
 exports.findTipK = async (request, response) => {
-  let { nama_tipe, nomor_kamar } = request.body;
+  const { tipeKamarId } = request.params;
+  const tgl_check_in = request.query.tgl_check_in;
+  const tgl_check_out = request.query.tgl_check_out;
 
-  let whereCondition = {};
-
-  if (nama_tipe) {
-    whereCondition = {
-      ...whereCondition,
-      [Op.or]: [{ nama_tipe_kamar: { [Op.substring]: nama_tipe } }],
-    };
-  }
-
-  if (nomor_kamar) {
-    whereCondition = {
-      ...whereCondition,
-      nomor_kamar: {
-        [Op.substring]: nomor_kamar,
-      },
-    };
-  }
-
-  let checkTipe = await tipeKamar.findOne({
-    where: whereCondition,
-  });
-
-  if (checkTipe === null) {
-    response.status(404).json({
-      success: true,
-      message: `Tidak ada tipe kamar ${nama_tipe}`,
+  if (!tipeKamarId || !tgl_check_in || !tgl_check_out) {
+    return response.status(400).json({
+      success: false,
+      message: 'Missing required parameters: tipeKamarId, tgl_check_in, and tgl_check_out',
     });
-  } else {
-    let result = await kamarModel.findAll({
+  }
+
+  try {
+    // Find booked rooms within the specified date range
+    const bookedRooms = await detail_pemesanan.findAll({
       where: {
-        [Op.or]: [{ tipeKamarId: checkTipe.id }],
+        tgl_akses: {
+          [Op.between]: [tgl_check_in, tgl_check_out],
+        },
+      },
+      attributes: ['kamarId'],
+    });
+
+    const bookedRoomIds = bookedRooms.map((row) => row.kamarId);
+
+    // Find available rooms for the given tipeKamarId that are not booked
+    const availableRooms = await kamarModel.findAll({
+      where: {
+        tipeKamarId: tipeKamarId,
+        id: {
+          [Op.notIn]: bookedRoomIds,
+        },
       },
     });
-    response.status(200).json({
-      success: true,
-      data: result,
+
+    if (availableRooms.length === 0) {
+      return response.status(404).json({
+        success: false,
+        message: `No available rooms with tipeKamarId ${tipeKamarId} for the specified date range`,
+      });
+    } else {
+      return response.status(200).json({
+        success: true,
+        data: availableRooms,
+        count: availableRooms.length,
+      });
+    }
+  } catch (error) {
+    return response.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
 
 exports.addKamar = async (request, response) => {
   let nama_tipe_kamar = request.body.nama_tipe_kamar;
+  let jumlah_kamar = parseInt(request.body.jumlah_kamar); // Parse jumlah_kamar as an integer
 
   let tipe_Kamar = await tipeKamar.findOne({
     where: {
@@ -138,7 +205,8 @@ exports.addKamar = async (request, response) => {
     let startingRoomNumber = lastRoomNumber ? parseInt(lastRoomNumber.nomor_kamar) + 1 : 1;
     let newKamarList = [];
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < jumlah_kamar; i++) {
+      // Loop based on jumlah_kamar
       let nomor = (startingRoomNumber + i).toString();
       let nomork = await kamarModel.findOne({
         where: {

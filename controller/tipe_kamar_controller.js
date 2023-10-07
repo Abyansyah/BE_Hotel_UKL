@@ -17,7 +17,7 @@ exports.getAllTipekamar = async (request, response) => {
 };
 
 exports.getTipe = async (request, response) => {
-  let tipe = await tipeModel.findAll({ order: [['updatedAt', 'DESC']] });
+  let tipe = await tipeModel.findAll({ order: [['updatedAt', 'DESC']], limit: 3 });
   return response.json({
     success: true,
     data: tipe,
@@ -47,7 +47,7 @@ exports.getAvailableTipeKamar = async (request, response) => {
           [Op.notIn]: bookedRoomIds,
         },
       },
-      attributes: ['tipeKamarId'],
+      attributes: ['tipeKamarId', 'nomor_kamar'],
     });
 
     const availableTipeKamarIds = availableKamars.map((row) => row.tipeKamarId);
