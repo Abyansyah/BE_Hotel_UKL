@@ -59,7 +59,6 @@ exports.login = async (request, response) => {
       },
     });
   } catch (error) {
-    console.log(error);
     return response.status(404).json({
       message: 'Internal error',
       err: error,
@@ -142,48 +141,42 @@ exports.addUser = (request, response) => {
         message: error,
       });
     }
-    if (!request.file) {
-      return response.status(400).json({
-        success: false,
-        message: `Nothing to Upload`,
-      });
-    }
-
-    let newUser = {
-      nama_user: request.body.nama_user,
-      foto: request.file.filename,
-      email: request.body.email,
-      password: md5(request.body.password),
-      role: request.body.role,
-    };
 
     userModel
       .findOne({
-        where: [{ email: { [Op.substring]: newUser.email } }],
+        where: [{ email: { [Op.substring]: request.body.email } }],
       })
       .then((existingUser) => {
         if (existingUser) {
           return response.status(208).json({
             success: false,
-            message: 'Email tersebut sudah ada',
+            message: 'Email already exists',
           });
-        } else {
-          userModel
-            .create(newUser)
-            .then((result) => {
-              return response.status(201).json({
-                success: true,
-                data: result,
-                message: `New User has been inserted`,
-              });
-            })
-            .catch((error) => {
-              return response.status(500).json({
-                success: false,
-                message: error.message,
-              });
-            });
         }
+
+        let newUser = {
+          nama_user: request.body.nama_user,
+          foto: request.file ? request.file.filename : null,
+          email: request.body.email,
+          password: md5(request.body.password),
+          role: request.body.role,
+        };
+
+        userModel
+          .create(newUser)
+          .then((result) => {
+            return response.status(201).json({
+              success: true,
+              data: result,
+              message: `New User has been inserted`,
+            });
+          })
+          .catch((error) => {
+            return response.status(500).json({
+              success: false,
+              message: error.message,
+            });
+          });
       })
       .catch((error) => {
         return response.status(500).json({
@@ -225,6 +218,7 @@ exports.updateUser = (request, response) => {
       dataUser.password = md5(request.body.password);
     }
 
+    // Check if a file was uploaded
     if (request.file) {
       const selectedUser = await userModel.findOne({
         where: { id: idUser },
@@ -232,13 +226,20 @@ exports.updateUser = (request, response) => {
 
       const oldFotoUser = selectedUser.foto;
 
-      const patchFoto = path.join(__dirname, `../foto_user`, oldFotoUser);
+      if (oldFotoUser) {
+        const patchFoto = path.join(__dirname, `../foto_user`, oldFotoUser);
 
-      if (fs.existsSync(patchFoto)) {
-        fs.unlink(patchFoto, (error) => console.log(error));
+        if (fs.existsSync(patchFoto)) {
+          fs.unlink(patchFoto, (error) => console.log(error));
+        }
       }
 
       dataUser.foto = request.file.filename;
+    }
+
+    // Check if the photo is not provided and keep the old photo if it exists
+    if (!request.file && getId[0].foto) {
+      dataUser.foto = getId[0].foto;
     }
 
     let user = await userModel.findAll({
